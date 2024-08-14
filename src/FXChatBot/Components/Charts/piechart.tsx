@@ -8,6 +8,7 @@ import {
 
 import { Grid } from "@mui/material";
 import { Pie } from "react-chartjs-2";
+import React from "react";
 
 ChartJS.register(Title, Tooltip, Legend, ArcElement);
 

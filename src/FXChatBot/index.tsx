@@ -5,6 +5,7 @@ import {
     FONT_SIZE,
     GOLD_INFO,
     INVESTMENT_CATEGORIES,
+    INVESTMENT_METHOD,
     MESSAGE_SENDER,
     MF_INFO,
     MUTUAL_FUND,
@@ -13,7 +14,7 @@ import {
     STOCKS,
     STOCKS_INFO,
     WelcomeMessage
-} from "./enums.ts";
+} from "./Constants/Enums/enums.ts";
 import {
     Box,
     Dialog,
@@ -28,12 +29,13 @@ import {
     FINANCIAL_ADVICE_MENUITEMS,
     GOLD_MENUITEMS,
     INVESTMENT_CATEGORIES_MENUITEMS,
+    INVESTMENT_METHOD_MENUITEMS,
     MUTUAL_FUND_MENUITEMS,
     RETURNS_MENUITEM,
     RISK_MENUITEM,
     RISK_RETURN,
     STOCKS_MENUITEMS
-} from "./menuItems.ts";
+} from "./Constants/MenuItems/menuItems.ts";
 import {
     FundResponse,
     FundType,
@@ -42,20 +44,22 @@ import {
     MenuItem,
     SpendsAdvice,
     UserInfoFormData
-} from "./interface/index.ts";
+} from "./Interface/index.ts";
 import React, {
     useEffect,
     useRef,
     useState
 } from "react";
-import UserGoalForm, { GoalFormData } from "./UserGoalForm.tsx";
+import UserGoalForm, { GoalFormData } from "./Forms/UserGoalForm.tsx";
 
 import ChatIcon from "@mui/icons-material/Chat";
-import InvestmentReturnsChart from "./lineChart.tsx";
-import Message from "./Message.tsx";
-import SpendingPieChart from "./piechart.tsx";
+import InvestmentReturnsChart from "./Components/Charts/lineChart.tsx";
+import LoadingDots from "./Components/LoadingDots/loadingDots.tsx";
+import Message from "./Components/Message/Message.tsx";
+import SpendingPieChart from "./Components/Charts/piechart.tsx";
 import { TransitionProps } from "@mui/material/transitions";
-import UserInfoForm from "./UserInfoForm.tsx";
+import UserInfoForm from "./Forms/UserInfoForm.tsx";
+import axios from 'axios';
 
 // import SendIcon from "@mui/icons-material/Send";
 
@@ -71,7 +75,7 @@ const Transition = React.forwardRef(function Transition(
 
 
 
-type Message = {
+type MessageType = {
     text?: string;
     sender: MESSAGE_SENDER.USER | MESSAGE_SENDER.BOT;
     chart?: React.ReactNode;
@@ -81,15 +85,18 @@ type Message = {
 const Chatbot = () => {
     const [open, setOpen] = useState(false); // Open PopUp
     // const [message, setMessage] = useState(''); // Code for Type Message 
-    const [messages, setMessages] = useState<Message[]>([]); // sets messages
+    const [messages, setMessages] = useState<MessageType[]>([]); // sets messages
     const [showForm, setShowForm] = useState(false); // To Display Form
     const [showGoalForm, setShowGoalForm] = useState(false); // To Display Goal Form
     const [showNavigateMenuItem, setShowNavigateMenuItem] = useState(true); // To Display Form
     const [navigateMenuItem, setNavigateMenuItem] = useState<MenuItem[]>([]); // To Display Form
     const [userName, setUserName] = useState(""); // To set UserName
     const [helperText, setHelperText] = useState("Please fill the form");
+    const [errorText, setErrorText] = useState("");
     const [investmentPlan, setInvestmentPlan] = useState<InvestmentPlan | null>(null);
     const [spendsAdvice, setSpendsAdvice] = useState<SpendsAdvice | null>(null);
+    const [loading, setLoading] = useState(false);
+    const [investmentMethod, setInvestmentMethod] = useState<INVESTMENT_METHOD.SIP | INVESTMENT_METHOD.LUMPSUM>(INVESTMENT_METHOD.SIP);
     const dialogContentRef = useRef<HTMLDivElement>(null); // To scroll Down when new message is sent
     
     // Open Chatbot
@@ -97,6 +104,7 @@ const Chatbot = () => {
         setMessages([{  "sender": MESSAGE_SENDER.BOT, "text": WelcomeMessage, }]);
         setOpen(true);
         setShowForm(true);
+        
         setShowNavigateMenuItem(true);
     };
 
@@ -106,6 +114,7 @@ const Chatbot = () => {
         setShowForm(false);
         setShowGoalForm(false);
         setHelperText("");
+        setErrorText("");
     };
 
     // const handleSendMessage = () => {
@@ -133,13 +142,19 @@ const Chatbot = () => {
             setNavigateMenuItem(MUTUAL_FUND_MENUITEMS);
             break;
 
+        case 3: 
+        setNavigateMenuItem(RISK_RETURN);
+        break;
+
         default:
             setNavigateMenuItem(FINANCIAL_ADVICE_MENUITEMS);
         }
     };
     
     const handleMenuItemClick = (msg: string) => {
+        setErrorText("");
         if (msg && msg.length>0){
+            console.log("msg",msg);
             let level: number = 0;
             setShowNavigateMenuItem(false);
             setMessages([...messages, {
@@ -165,7 +180,7 @@ const Chatbot = () => {
                         "menuItems": INVESTMENT_CATEGORIES_MENUITEMS, 
                         "sender": MESSAGE_SENDER.BOT, 
                         "text": "Please select one of the following investment options to explore further:", 
-                    } as Message,
+                    } as MessageType,
                 ]);
                 setHelperText("Please select a menuItem");
                 
@@ -185,16 +200,14 @@ const Chatbot = () => {
                 ]);
                 
             } else if (msg === FINANCIAL_ADVICE.GOAL_PLANNING) {
-                
-                setShowGoalForm(true);
                 setMessages(prevMessages => [
                     ...prevMessages,
-                    {
-                        "sender": MESSAGE_SENDER.BOT, 
-                        "text": "Please fill out your goal details",  
-                    }
+                    { 
+                        "menuItems": INVESTMENT_METHOD_MENUITEMS,
+                        "sender": MESSAGE_SENDER.BOT,
+                        "text": "Select Investment Method?", 
+                    } as MessageType,
                 ]);
-                
             } 
             
             // Level 1 INVESTMENT_CATEGORIES_MENUITEMS
@@ -206,7 +219,7 @@ const Chatbot = () => {
                         "menuItems": MUTUAL_FUND_MENUITEMS,
                         "sender": MESSAGE_SENDER.BOT,
                         "text": "How would you like to proceed?", 
-                    } as Message,
+                    } as MessageType,
                 ]);
                 
             } else if (msg===INVESTMENT_CATEGORIES.STOCKS){
@@ -217,7 +230,7 @@ const Chatbot = () => {
                         "menuItems": STOCKS_MENUITEMS,
                         "sender": MESSAGE_SENDER.BOT,
                         "text": "How would you like to proceed?", 
-                    } as Message,
+                    } as MessageType,
                 ]);
                 
             } else if (msg===INVESTMENT_CATEGORIES.GOLD){
@@ -228,7 +241,7 @@ const Chatbot = () => {
                         "menuItems": GOLD_MENUITEMS,
                         "sender": MESSAGE_SENDER.BOT,
                         "text": "How would you like to proceed?", 
-                    } as Message,
+                    } as MessageType,
                 ]);
                 
             } 
@@ -247,7 +260,7 @@ const Chatbot = () => {
             } else if (msg===MUTUAL_FUND.TOP){
                 
                 handleTopPerforming();
-                level=1;
+                level=2;
                 
             } else if (msg===MUTUAL_FUND.FILTER){
                 
@@ -325,56 +338,119 @@ const Chatbot = () => {
             } 
             // Level 4 RISK And RETURNS
             else if (msg===RISK_TYPE.LOW || msg===RISK_TYPE.MEDIUM || msg===RISK_TYPE.HIGH){
+                handleFilterTopPerforming(msg, null, null, null);
                 
-                
-                level=2; // Level 2 In MF
+                level=3; // Level 2 In MF
                 
             } else if (msg===RETURN_RANGE.LOW || msg===RETURN_RANGE.MEDIUM || msg===RETURN_RANGE.HIGH){
                 
+                const cleanValue = msg.replace('%', '').replace('+', '');
+                const [lower, upper] = cleanValue.split('-').map(Number);
+                handleFilterTopPerforming(null,msg,lower,upper);
+                level=3; // Level 2 In MF
                 
-                level=2; // Level 2 In MF
+            } else if (msg === INVESTMENT_METHOD.SIP || msg === INVESTMENT_METHOD.LUMPSUM) {
                 
-            }
+                setShowGoalForm(true);
+                setInvestmentMethod(msg);
+                setMessages(prevMessages => [
+                    ...prevMessages,
+                    {
+                        "sender": MESSAGE_SENDER.BOT, 
+                        "text": "Please fill out your goal details",  
+                    }
+                ]);
+            } 
             handleSetNavigateMenuItem(level);
             // setMessage('');
         }
     };
     
-    const handleTopPerforming = () => {
-        
-        let apiResponse: FundResponse = {
-            "fund": [
-                {
-                    "expenseRatio": "0.39%",
-                    "name": "Invesco India Arbitrage Fund Direct Plan Growth Option",
-                    "returns": "6.86%",
-                    "riskType": "Low",
+    const handleFilterTopPerforming = async (risk: string | null, returns: string | null, lower: number | null, upper: number | null ) => {
+        console.log("iniii");
+        let filteredTopPerformingFunds = "";
+        setLoading(true);
+        try {
+            const res = await axios.get('http://localhost:5000/filteredMF', {
+                params: {
+                    riskType: risk ?? null,
+                    lowerLimit: lower ?? null,
+                    upperLimit: upper ?? null,
                 },
-                {
-                    "expenseRatio": "0.43%",
-                    "name": "Kotak Equity Arbitrage Fund Direct Growth",
-                    "returns": "6.72%",
-                    "riskType": "Low",
-                },
-                {
-                    "expenseRatio": "0.43%",
-                    "name": "Edelweiss Arbitrage Fund Direct Growth",
-                    "returns": "6.67%",
-                    "riskType": "Low",
-                },
-                {
-                    "expenseRatio": "0.39%",
-                    "name": "Invesco India Arbitrage Fund Direct Plan Growth Option",
-                    "returns": "6.86%",
-                    "riskType": "Low",
-                },
-            ],
-        };
-        
-        const topPerformingFunds = apiResponse.fund.map((fund: FundType) => (
-            `Fund Name: **${fund.name}**\nRisk Type: **${fund.riskType}**\nReturns: **${fund.returns}**\nExpense Ratio: **${fund.expenseRatio}**\n`
-        )).join('\n');
-            
+              });
+              console.log("res filter",res);
+              if (risk){
+                  filteredTopPerformingFunds = `Risk Level: **${risk}**\n\n` +
+                    res.data
+                        .map((fund: FundType) => {
+                        return (
+                    `Fund Name: **${fund.name}**\n` +
+                            `Returns: **${fund.returns}**\n` +
+                            `Expense Ratio: **${fund.expenseRatio}**\n`
+                        );
+                        })
+                        .join('\n\n');
+              } else {
+                filteredTopPerformingFunds = `Returns: **${returns}**\n\n` +
+                    res.data
+                        .map((fund: FundType) => {
+                        return (
+                    `Fund Name: **${fund.name}**\n` +
+                            `Returns: **${fund.returns}**\n` +
+                            `Expense Ratio: **${fund.expenseRatio}**\n`
+                        );
+                        })
+                        .join('\n\n');
+              }
+            //   filteredTopPerformingFunds = Object.entries(res.data)
+            //         .map(([riskLevel, funds]) => {
+            //             return `Risk Level: **${riskLevel}**\n\n` +
+            //                 (funds as FundType[]).map((fund: FundType) =>
+            //                     `Fund Name: **${fund.name}**\n` +
+            //                     `Risk Type: **${fund.riskType}**\n` +
+            //                     `Returns: **${fund.returns}**\n` +
+            //                     `Expense Ratio: **${fund.expenseRatio}**\n`
+            //                 ).join('\n');
+            //         }).join('\n\n');
+        } catch (error) {
+            setErrorText(error.message);
+            console.log("error",error);
+        } finally {
+            setLoading(false);
+          }
+        console.log("filteredTopPerformingFunds",filteredTopPerformingFunds);
+        setMessages(prevMessages => [
+            ...prevMessages,
+            { 
+                "sender": MESSAGE_SENDER.BOT, 
+                "text": filteredTopPerformingFunds,  
+            },
+        ]);
+    };
+
+    const handleTopPerforming = async () => {
+        let topPerformingFunds = "";
+        setLoading(true);
+        try {
+            const res = await axios.get('http://localhost:5000/topMf');
+              console.log("res",res);
+                topPerformingFunds = Object.entries(res.data)
+                    .map(([riskLevel, funds]) => {
+                        return `Risk Level: **${riskLevel}**\n\n` +
+                            (funds as FundType[]).map((fund: FundType) =>
+                                `Fund Name: **${fund.name}**\n` +
+                                `Risk Type: **${fund.riskType}**\n` +
+                                `Returns: **${fund.returns}**\n` +
+                                `Expense Ratio: **${fund.expenseRatio}**\n`
+                            ).join('\n');
+                    }).join('\n\n');
+        } catch (error) {
+            setErrorText(error.message);
+            console.log("error",error);
+        } finally {
+            setLoading(false);
+          }
+        console.log("topPerformingFunds",topPerformingFunds);
         setMessages(prevMessages => [
             ...prevMessages,
             { 
@@ -385,81 +461,79 @@ const Chatbot = () => {
     };
     
     const handleGoalFormSubmit = async (data: GoalFormData) => {
-        console.log("data",data);
+        setShowGoalForm(false);
         const formattedMessage = `Goal Amount: ${data.amount}\nGoal Duration: ${data.time}\nExpected Returns: ${data.returns}`;
-        let apiResponse = {
-            "Goal Advice": {
-                "Investment In Debt Fund": "700",
-                "Investment In Equity Funds": "1750",
-                "Investment In Hybrid Fund": "1050",
-                "Monthly Investment Amount": "3500",
-                "Total Amount": "552078.9939014039",
-                "Total Investment Amount": "210000",
-                "Total Profit": "342078.99390140385"
-            }
-        };
-        
-        const formattedGoalAdvice = Object.entries(apiResponse['Goal Advice'] as GoalAdvice)
+        let formattedGoalAdvice = "";
+        let response;
+        setLoading(true);
+        try {
+            const res = await axios.get('http://localhost:5000/goal', {
+                params: {
+                    amount: data.amount,
+                    time: data.time,
+                    returns: data.returns,
+                    type: investmentMethod,
+                },
+              });
+              console.log("res",res);
+            response =res.data;
+            formattedGoalAdvice = Object.entries(res.data as GoalAdvice)
             .map(([key,value]) =>
                 `${key}: **${value}**`)
             .join('\n');
-
-    
+        } catch (error) {
+            setErrorText(error.message);
+            console.log("error",error);
+        } finally {
+            setLoading(false);
+          }
+        console.log("formattedGoalAdvice",formattedGoalAdvice);
         setMessages(prevMessages => [
             ...prevMessages,
             { "sender": MESSAGE_SENDER.USER, "text": formattedMessage },
             { "sender": MESSAGE_SENDER.BOT, "text": formattedGoalAdvice,  },
             { "chart": 
             <InvestmentReturnsChart
-                monthlyInvestment={3500}
-                durationInMonths={60} // Example: 10 years
-                expectedReturnRate={0.14} // Example: 8% annual return
+                monthlyInvestment={Number(response["Investment Amount"])}
+                durationInMonths={Number(data.time) * 12} // Example: 10 years
+                expectedReturnRate={Number(data.returns)/100} // Example: 8% annual return
+                investmentType= {investmentMethod}
             />
             , "sender": MESSAGE_SENDER.BOT 
             },
         ]);
-        setShowGoalForm(false);
         // setMessage('');
     };
 
     const handleFormSubmit = async (data: UserInfoFormData) => {
         setUserName(data.name);
-        
         const formattedMessage = `Name: ${data.name}\nAge: ${data.age}\nIncome: ${data.income}`;
         
-        let apiResponse = {
-            "Investment Allocation": {
-                "Debt": {
-                    "Percentage": 20,
-                    "Reason": "Provides stability and income generation"
+        setLoading(true);
+        try {
+            const res = await axios.get('http://localhost:5000/analyze', {
+                params: {
+                    name: data.name,
+                    age: data.age,
+                    income: data.income,
+                    essential: data.spends.essential,
+                    savings: data.spends.savings,
+                    leisure: data.spends.leisure,
+                    healthcare: data.spends.healthcare,
+                    debt: data.spends.debt,
+                    transport: data.spends.transport,
                 },
-                "Equity": {
-                    "Percentage": 60,
-                    "Reason": "Higher growth potential for long-term wealth creation"
-                },
-                "Gold": {
-                    "Percentage": 10,
-                    "Reason": "Inflation hedge and portfolio diversification"
-                },
-                "Real Estate": {
-                    "Percentage": 10,
-                    "Reason": "Long-term asset appreciation and potential rental income"
-                },
-            },
-            "Modifying Your Spends": {
-                "Leisure": {
-                    "Reason": "Optimize spending for long-term financial goals",
-                    "Suggestion": "Reduce by 10%",
-                },
-                "Savings": {
-                    "Reason": "Build a strong financial foundation for future needs",
-                    "Suggestion": "Increase by 10%",
-                }
-            }
-        };
-        
-        setInvestmentPlan(apiResponse['Investment Allocation']);
-        setSpendsAdvice(apiResponse['Modifying Your Spends']);
+              });
+              console.log("res",res);
+              setInvestmentPlan(res.data["Investment Allocation"]);
+              setSpendsAdvice(res.data['Modifying Your Spends']);
+        } catch (error) {
+            setErrorText(error.message);
+            console.log("error",error);
+        } finally {
+            setLoading(false);
+          }
+          
         setMessages(prevMessages => [
             ...prevMessages,
             { 
@@ -474,7 +548,7 @@ const Chatbot = () => {
                 "menuItems": FINANCIAL_ADVICE_MENUITEMS, 
                 "sender": MESSAGE_SENDER.BOT, 
                 "text": "Let's plan your finance. Choose an option below to get started." 
-            } as Message,
+            } as MessageType,
         ]);
         
         setHelperText("Please select a menuItem");
@@ -613,7 +687,10 @@ const Chatbot = () => {
                                 menuItems={msg.menuItems}
                                 sender={msg.sender}
                                 userName={userName}
+                                loading={loading}
                                 prevSender={messages[index-1] ? messages[index-1].sender : MESSAGE_SENDER.USER}
+                                showNavigateMenuItem={showNavigateMenuItem}
+                                errorText={errorText}
                                 handleMenuItemClick={(value) => {
                                     handleMenuItemClick(value);
                                 }}
@@ -654,43 +731,106 @@ const Chatbot = () => {
                                 "alignItems": 'center',
                                 "display": 'flex',
                                 "flexDirection": 'row',
-                                "flexWrap": "wrap",
+                                // "flexWrap": "wrap",
                                 "gap": "6px",
-                                "justify-content": "space-between",
+                                // "justify-content": "space-between",
                                 "marginTop": '8px',
+                                "width": "97%",
                             }}
                         >
-                            {showNavigateMenuItem && helperText &&
-                            <Typography
-                                sx={{
-                                    // "color": BACKGROUND_COLOR.SECONDARY,
-                                    "fontSize": FONT_SIZE.MESSAGE,
-                                    "padding": "0px 3px 3px 3px",
-                                }}
-                            >
-                                {helperText}
-                            </Typography>
-                            }
-                            {!showNavigateMenuItem && navigateMenuItem.map((item, index) => (
-                                <IconButton
-                                    // key={index}
-                                    onClick={() => handleMenuItemClick(item.value)}
+                            {loading && showNavigateMenuItem && <LoadingDots />}
+                            {
+                                (errorText && errorText.length>0)
+                                ?
+                                <Grid
+                            sx={{
+                                "display": 'flex',
+                                "flexDirection": 'column',
+                            }}
+                        >
+                            
+                                <Typography
                                     sx={{
-                                        '&:hover': {
-                                            "backgroundColor": BACKGROUND_COLOR.SECONDARY,
-                                            "color": "white",
-                                        },
-                                        "backgroundColor": "white",
-                                        "border": `1px solid ${BACKGROUND_COLOR.SECONDARY}`,
-                                        "borderRadius": "50px",
-                                        "color": BACKGROUND_COLOR.SECONDARY,
-                                        "fontSize": "12px",
-                                        "transition": "background-color 0.3s ease-in-out, color 0.3s ease-in-out",
+                                        "color": "red",
+                                        "fontSize": FONT_SIZE.MESSAGE,
+                                        "padding": "0px 3px 3px 3px",
                                     }}
                                 >
-                                    {item.label}
-                                </IconButton>
-                            ))}
+                                    {errorText}
+                                </Typography>
+                                {!showNavigateMenuItem && (
+                                    <Grid
+                                    sx={{
+                                        "alignItems": 'center',
+                                        "display": 'flex',
+                                        "flexDirection": 'row',
+                                        // "flexWrap": "wrap",
+                                        "gap": "6px",
+                                        // "justify-content": "space-between",
+                                        "marginTop": '8px',
+                                        "width": "97%",
+                                    }}
+                                >
+                                        {navigateMenuItem.map((item, index) => (
+                                        <IconButton
+                                            // key={index}
+                                            onClick={() => handleMenuItemClick(item.value)}
+                                            sx={{
+                                                '&:hover': {
+                                                    "backgroundColor": BACKGROUND_COLOR.SECONDARY,
+                                                    "color": "white",
+                                                },
+                                                "backgroundColor": "white",
+                                                "border": `1px solid ${BACKGROUND_COLOR.SECONDARY}`,
+                                                "borderRadius": "50px",
+                                                "color": BACKGROUND_COLOR.SECONDARY,
+                                                "fontSize": "12px",
+                                                "transition": "background-color 0.3s ease-in-out, color 0.3s ease-in-out",
+                                            }}
+                                        >
+                                            {item.label}
+                                        </IconButton>
+                                        ))}
+                                </Grid>
+                                    )}
+                        </Grid>
+
+                                :
+                                <>
+                                {showNavigateMenuItem && helperText && !loading &&
+                                    <Typography
+                                        sx={{
+                                            // "color": BACKGROUND_COLOR.SECONDARY,
+                                            "fontSize": FONT_SIZE.MESSAGE,
+                                            "padding": "0px 3px 3px 3px",
+                                        }}
+                                    >
+                                        {helperText}
+                                    </Typography>
+                                    }
+                                    {!showNavigateMenuItem && navigateMenuItem.map((item, index) => (
+                                        <IconButton
+                                            // key={index}
+                                            onClick={() => handleMenuItemClick(item.value)}
+                                            sx={{
+                                                '&:hover': {
+                                                    "backgroundColor": BACKGROUND_COLOR.SECONDARY,
+                                                    "color": "white",
+                                                },
+                                                "backgroundColor": "white",
+                                                "border": `1px solid ${BACKGROUND_COLOR.SECONDARY}`,
+                                                "borderRadius": "50px",
+                                                "color": BACKGROUND_COLOR.SECONDARY,
+                                                "fontSize": "12px",
+                                                "transition": "background-color 0.3s ease-in-out, color 0.3s ease-in-out",
+                                            }}
+                                        >
+                                            {item.label}
+                                        </IconButton>
+                                    ))}
+                                </>
+                            }
+                            
                         </Grid>
                         
                     </Grid>

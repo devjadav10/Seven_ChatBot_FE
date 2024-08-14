@@ -37,6 +37,7 @@ export interface FundType {
     riskType: string;
     returns: string;
     expenseRatio: string;
+    _id: string;
 }
  
 export interface FundResponse {
