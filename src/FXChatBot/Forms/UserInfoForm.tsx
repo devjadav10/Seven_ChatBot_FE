@@ -10,8 +10,8 @@ import React, {
     useState
 } from "react";
 
-import { FONT_SIZE } from "./enums.ts";
-import { UserInfoFormData } from "./interface/index.ts";
+import { FONT_SIZE } from "../Constants/Enums/enums.ts";
+import { UserInfoFormData } from "../Interface/index.ts";
 
 type UserInfoFormProps = {
     onSubmit: (data: UserInfoFormData) => void;

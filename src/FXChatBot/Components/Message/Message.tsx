@@ -2,14 +2,15 @@ import {
     BACKGROUND_COLOR,
     FONT_SIZE,
     MESSAGE_SENDER
-} from "./enums.ts";
+} from "../../Constants/Enums/enums.ts";
 import {
     Grid,
     IconButton,
     Typography
 } from "@mui/material";
 
-import { MenuItem } from "./interface/index.ts";
+import LoadingDots from "../LoadingDots/loadingDots.tsx";
+import { MenuItem } from "../../Interface/index.ts";
 import React from "react";
 import ReactMarkdown from "react-markdown";
 
@@ -20,6 +21,9 @@ type MessageProps = {
     prevSender?: MESSAGE_SENDER.USER | MESSAGE_SENDER.BOT;
     sender: MESSAGE_SENDER.USER | MESSAGE_SENDER.BOT;
     userName: string;
+    loading: boolean;
+    showNavigateMenuItem: boolean;
+    errorText: string;
     handleMenuItemClick: (value: string) => void;
 };
  
@@ -31,6 +35,9 @@ const Message: React.FC<MessageProps> =
     sender, 
     userName, 
     prevSender, 
+    loading,
+    showNavigateMenuItem,
+    errorText,
     handleMenuItemClick, 
 }) => {
     const markdownStyles = {
@@ -50,6 +57,7 @@ const Message: React.FC<MessageProps> =
                 "marginBottom": '8px',
             }}
         >
+            {loading && !showNavigateMenuItem &&<LoadingDots />}
             {text && (
                 <>
                     {
@@ -66,7 +74,7 @@ const Message: React.FC<MessageProps> =
                                 {
                                     sender === MESSAGE_SENDER.USER 
                                         ? userName 
-                                        : "XBot"
+                                        : "FBot"
                                 }
                             </Typography>
                         )
@@ -102,7 +110,7 @@ const Message: React.FC<MessageProps> =
                 </>
             )}
             
-            {chart}
+            {errorText.length===0 && chart}
             
             {menuItems && (
                 <Grid

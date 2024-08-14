@@ -9,7 +9,7 @@ import React, {
     useState
 } from "react";
 
-import { FONT_SIZE } from "./enums.ts";
+import { FONT_SIZE } from "../Constants/Enums/enums.ts";
 
 export type GoalFormData = {
     amount: string;
